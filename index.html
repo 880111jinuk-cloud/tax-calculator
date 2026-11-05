@@ -5,161 +5,46 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>연말정산 정밀 시뮬레이터</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
   <style>
-    body { font-family: 'Pretendard', -apple-system, sans-serif; background-color: #f1f5f9; }
-    .card { background: white; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); margin-bottom: 24px; }
+    body { font-family: 'Pretendard', -apple-system, sans-serif; background-color: #f8fafc; }
+    .card { background: white; border-radius: 16px; padding: 28px; box-shadow: 0 4px 20px rgba(0,0,0,0.03); margin-bottom: 24px; border: 1px solid #f1f5f9; }
+    .num-input { text-align: right; font-weight: 500; font-size: 1.1rem; }
+    .num-input::placeholder { font-weight: 400; color: #cbd5e1; }
   </style>
 </head>
-<body class="p-8">
-  <div class="max-w-6xl mx-auto flex flex-col md:flex-row gap-6">
-    <!-- 왼쪽: 입력 폼 -->
-    <div class="flex-1">
-      <h1 class="text-2xl font-bold mb-6 text-blue-600">연말정산 정밀 시뮬레이터</h1>
-      
-      <div class="card">
-        <h2 class="font-bold text-lg mb-4">1. 급여 및 기납부 세금</h2>
-        <div class="mb-4">
-          <label class="block text-sm text-gray-600 mb-1">계약연봉 (원)</label>
-          <input type="text" id="salary" class="w-full border rounded p-2 text-right" placeholder="예: 42,800,000" onkeyup="formatAndCalculate(this)">
-        </div>
-        <div class="mb-4">
-          <label class="block text-sm text-gray-600 mb-1">비과세 소득 합계 (식대 등) (원)</label>
-          <input type="text" id="nonTaxable" class="w-full border rounded p-2 text-right" placeholder="0" onkeyup="formatAndCalculate(this)">
-        </div>
-        <div class="mb-4">
-          <label class="block text-sm text-gray-600 mb-1">미리 낸 세금 (기납부 소득세) (원)</label>
-          <input type="text" id="prepaidTax" class="w-full border rounded p-2 text-right" placeholder="예: 2,500,000" onkeyup="formatAndCalculate(this)">
+<body>
+  <!-- 상단 헤더 -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+      <div class="flex items-center gap-3">
+        <div class="bg-blue-600 text-white p-2 rounded-lg"><i class="fa-solid fa-calculator"></i></div>
+        <div>
+          <h1 class="text-xl font-bold text-gray-800">연말정산 정밀 시뮬레이터</h1>
+          <p class="text-xs text-gray-500">2026 국세청 표준 누진 계산식 & 상세 풀이</p>
         </div>
       </div>
-
-      <div class="card">
-        <h2 class="font-bold text-lg mb-4">2. 주요 소득공제 (임시 입력)</h2>
-        <div class="mb-4">
-          <label class="block text-sm text-gray-600 mb-1">종합소득공제 합계 (인적공제, 4대보험, 카드 등) (원)</label>
-          <input type="text" id="deductions" class="w-full border rounded p-2 text-right" placeholder="예: 15,000,000" onkeyup="formatAndCalculate(this)">
-          <p class="text-xs text-gray-400 mt-1">* 테스트를 위해 공제받을 금액 합계를 직접 입력해보세요.</p>
-        </div>
+      <div class="flex gap-2">
+        <button class="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg text-sm font-medium transition" onclick="location.reload()"><i class="fa-solid fa-rotate-right mr-1"></i> 입력값 초기화</button>
       </div>
     </div>
+  </header>
 
-    <!-- 오른쪽: 실시간 결과표 -->
-    <div class="w-full md:w-96">
-      <div class="card sticky top-8 border-2 border-blue-100">
-        <h2 class="font-bold text-center text-gray-700 mb-2">2026 예상 계산 결과</h2>
-        <div class="text-center text-3xl font-bold mb-6" id="finalResultText">0 원</div>
-        
-        <div class="space-y-3 text-sm">
-          <div class="flex justify-between border-b pb-1">
-            <span class="text-gray-600">1. 과세대상 총급여액</span>
-            <span id="taxableIncome" class="font-semibold">0 원</span>
-          </div>
-          <div class="flex justify-between border-b pb-1">
-            <span class="text-gray-600">2. 근로소득공제</span>
-            <span id="earnedIncomeDeduction" class="font-semibold text-red-500">- 0 원</span>
-          </div>
-          <div class="flex justify-between border-b pb-1">
-            <span class="text-gray-600">3. 종합소득공제</span>
-            <span id="totalDeductions" class="font-semibold text-red-500">- 0 원</span>
-          </div>
-          <div class="flex justify-between border-b pb-1 bg-gray-50">
-            <span class="text-gray-800 font-bold">4. 과세표준</span>
-            <span id="taxBase" class="font-bold">0 원</span>
-          </div>
-          <div class="flex justify-between border-b pb-1">
-            <span class="text-gray-600">5. 산출세액 (누진세율)</span>
-            <span id="calculatedTax" class="font-semibold">0 원</span>
-          </div>
-          <div class="flex justify-between border-b pb-1">
-            <span class="text-gray-600">6. 기납부 세금</span>
-            <span id="displayPrepaidTax" class="font-semibold text-blue-500">- 0 원</span>
-          </div>
-          <div class="flex justify-between pt-2">
-            <span class="text-gray-800 font-bold">최종 차감징수세액</span>
-            <span id="finalTax" class="font-bold text-lg">0 원</span>
+  <main class="max-w-7xl mx-auto px-6 py-8 flex flex-col lg:flex-row gap-8">
+    <!-- 왼쪽 입력 폼 -->
+    <div class="flex-1 max-w-3xl">
+      
+      <!-- 섹션 1: 급여 -->
+      <div class="card">
+        <div class="flex items-center gap-3 mb-6">
+          <span class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold">1</span>
+          <div>
+            <h2 class="text-lg font-bold text-gray-800">급여 및 비과세 소득 분리</h2>
+            <p class="text-sm text-gray-500">비과세를 뺀 '진짜 총급여액'을 기준으로 세금을 계산합니다.</p>
           </div>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <script>
-    function getNum(id) {
-      const val = document.getElementById(id).value.replace(/,/g, '');
-      return parseInt(val) || 0;
-    }
-
-    function formatNumber(num) {
-      return num.toLocaleString() + ' 원';
-    }
-
-    function formatAndCalculate(input) {
-      // 콤마 자동 생성
-      let value = input.value.replace(/,/g, '').replace(/[^0-9]/g, '');
-      if (value) input.value = parseInt(value).toLocaleString();
-      
-      calculateTax();
-    }
-
-    function calculateTax() {
-      const salary = getNum('salary');
-      const nonTaxable = getNum('nonTaxable');
-      const prepaidTax = getNum('prepaidTax');
-      const deductions = getNum('deductions');
-
-      // 1. 과세대상 총급여액
-      const taxableIncome = Math.max(0, salary - nonTaxable);
-
-      // 2. 근로소득공제 계산 공식 (국세청 표준)
-      let eIDeduction = 0;
-      if (taxableIncome <= 5000000) {
-        eIDeduction = taxableIncome * 0.7;
-      } else if (taxableIncome <= 15000000) {
-        eIDeduction = 3500000 + (taxableIncome - 5000000) * 0.4;
-      } else if (taxableIncome <= 45000000) {
-        eIDeduction = 7500000 + (taxableIncome - 15000000) * 0.15;
-      } else if (taxableIncome <= 100000000) {
-        eIDeduction = 12000000 + (taxableIncome - 45000000) * 0.05;
-      } else {
-        eIDeduction = Math.min(20000000, 14750000 + (taxableIncome - 100000000) * 0.02);
-      }
-
-      // 3. 과세표준 (총급여 - 근로소득공제 - 종합소득공제)
-      const taxBase = Math.max(0, taxableIncome - eIDeduction - deductions);
-
-      // 4. 산출세액 (누진세율 적용)
-      let calcTax = 0;
-      if (taxBase <= 14000000) calcTax = taxBase * 0.06;
-      else if (taxBase <= 50000000) calcTax = taxBase * 0.15 - 1260000;
-      else if (taxBase <= 88000000) calcTax = taxBase * 0.24 - 5760000;
-      else if (taxBase <= 150000000) calcTax = taxBase * 0.35 - 15440000;
-      else if (taxBase <= 300000000) calcTax = taxBase * 0.38 - 19940000;
-      else if (taxBase <= 500000000) calcTax = taxBase * 0.40 - 25940000;
-      else if (taxBase <= 1000000000) calcTax = taxBase * 0.42 - 35940000;
-      else calcTax = taxBase * 0.45 - 65940000;
-
-      // 5. 최종 차감징수세액 (결정세액 - 기납부세액)
-      // *실제로는 여기서 세액공제가 더 빠져야 하지만, 기본 로직 테스트를 위해 산출세액을 결정세액으로 가정
-      const finalPay = calcTax - prepaidTax;
-
-      // 화면 업데이트
-      document.getElementById('taxableIncome').innerText = formatNumber(taxableIncome);
-      document.getElementById('earnedIncomeDeduction').innerText = '- ' + formatNumber(eIDeduction);
-      document.getElementById('totalDeductions').innerText = '- ' + formatNumber(deductions);
-      document.getElementById('taxBase').innerText = formatNumber(taxBase);
-      document.getElementById('calculatedTax').innerText = formatNumber(calcTax);
-      document.getElementById('displayPrepaidTax').innerText = '- ' + formatNumber(prepaidTax);
-      
-      const finalResultText = document.getElementById('finalResultText');
-      if (finalPay < 0) {
-        finalResultText.innerText = `환급 ${formatNumber(Math.abs(finalPay))}`;
-        finalResultText.className = "text-center text-3xl font-bold mb-6 text-blue-600";
-        document.getElementById('finalTax').innerText = `환급 ${formatNumber(Math.abs(finalPay))}`;
-      } else {
-        finalResultText.innerText = `추가납부 ${formatNumber(finalPay)}`;
-        finalResultText.className = "text-center text-3xl font-bold mb-6 text-red-600";
-        document.getElementById('finalTax').innerText = `추가납부 ${formatNumber(finalPay)}`;
-      }
-    }
-  </script>
-</body>
-</html>
+        <div class="mb-6">
+          <label class="block text-sm font-medium text-gray-700 mb-2">계약연봉 (연간 총 수령액 = 기본급 + 상여 + 각종 수당)</label>
+          <div class="relative">
+            <input type="text" id="salary" class="num-input w-full border border-gray-300 rounded-lg p-3 pr-8 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline
